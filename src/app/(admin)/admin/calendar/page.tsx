@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Dog, User, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dog, User, Clock, MapPin, Home, GraduationCap, Scissors } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,11 +34,13 @@ interface Booking {
   serviceType: {
     id: string;
     name: string;
+    slug: string;
     basePrice: string | number;
   };
   dogs: BookingDog[];
   client: {
     id: string;
+    phone: string | null;
     user: {
       name: string | null;
       email: string | null;
@@ -46,13 +48,19 @@ interface Booking {
   };
 }
 
-const statusColors = {
-  PENDING: "bg-yellow-500",
-  CONFIRMED: "bg-green-500",
-  REJECTED: "bg-red-500",
-  CANCELLED: "bg-gray-400",
-  COMPLETED: "bg-blue-500",
-  NO_SHOW: "bg-red-400",
+// Service type colors for visual distinction
+const serviceColors: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
+  "day-hike": { bg: "bg-emerald-500", text: "text-emerald-700", icon: MapPin },
+  "boarding": { bg: "bg-purple-500", text: "text-purple-700", icon: Home },
+  "private-training": { bg: "bg-blue-500", text: "text-blue-700", icon: GraduationCap },
+  "grooming": { bg: "bg-pink-500", text: "text-pink-700", icon: Scissors },
+};
+
+const defaultServiceColor = { bg: "bg-gray-500", text: "text-gray-700", icon: Dog };
+
+const statusBadges = {
+  PENDING: { label: "Pending", variant: "secondary" as const },
+  CONFIRMED: { label: "Confirmed", variant: "default" as const },
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -66,11 +74,13 @@ export default function AdminCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dayDialogOpen, setDayDialogOpen] = useState(false);
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch("/api/bookings");
+      const response = await fetch("/api/bookings?limit=200");
       const data = await response.json();
       if (response.ok) {
         setBookings(data.bookings);
@@ -97,12 +107,10 @@ export default function AdminCalendarPage() {
 
     const days: (number | null)[] = [];
 
-    // Add empty slots for days before the first day of the month
     for (let i = 0; i < startingDay; i++) {
       days.push(null);
     }
 
-    // Add all days of the month
     for (let i = 1; i <= totalDays; i++) {
       days.push(i);
     }
@@ -133,21 +141,32 @@ export default function AdminCalendarPage() {
     setCurrentDate(new Date());
   };
 
-  const handleBookingClick = (booking: Booking) => {
+  const handleBookingClick = (booking: Booking, e: React.MouseEvent) => {
+    e.stopPropagation();
     setSelectedBooking(booking);
     setDialogOpen(true);
+  };
+
+  const handleDayClick = (day: number) => {
+    const dayBookings = getBookingsForDay(day);
+    if (dayBookings.length > 0) {
+      setSelectedDay(day);
+      setDayDialogOpen(true);
+    }
   };
 
   const formatTime = (timeStr: string | null) => {
     if (!timeStr) return "";
     if (timeStr.includes(":")) {
-      // Already formatted or is a time string like "9:00 AM"
       if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
-      // Is a datetime string
       const date = new Date(timeStr);
       return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
     }
     return timeStr;
+  };
+
+  const getServiceStyle = (slug: string) => {
+    return serviceColors[slug] || defaultServiceColor;
   };
 
   const isToday = (day: number) => {
@@ -158,6 +177,8 @@ export default function AdminCalendarPage() {
       currentDate.getFullYear() === today.getFullYear()
     );
   };
+
+  const selectedDayBookings = selectedDay ? getBookingsForDay(selectedDay) : [];
 
   if (loading) {
     return (
@@ -173,7 +194,7 @@ export default function AdminCalendarPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
           <p className="text-muted-foreground">
-            View scheduled bookings and appointments
+            View your schedule at a glance
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -183,7 +204,7 @@ export default function AdminCalendarPage() {
           <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="min-w-[160px] text-center font-semibold">
+          <span className="min-w-[180px] text-center font-semibold text-lg">
             {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
           <Button variant="outline" size="icon" onClick={goToNextMonth}>
@@ -193,14 +214,32 @@ export default function AdminCalendarPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-sm">
+      <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-          <span>Pending</span>
+          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+          <span>Day Hike</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span>Confirmed</span>
+          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+          <span>Boarding</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+          <span>Training</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+          <span>Grooming</span>
+        </div>
+        <div className="border-l pl-4 ml-2 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded border-2 border-yellow-500"></div>
+            <span>Pending</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-current opacity-100"></div>
+            <span>Confirmed</span>
+          </div>
         </div>
       </div>
 
@@ -223,7 +262,7 @@ export default function AdminCalendarPage() {
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day, index) => {
               if (day === null) {
-                return <div key={`empty-${index}`} className="min-h-[100px] p-1"></div>;
+                return <div key={`empty-${index}`} className="min-h-[120px] p-1"></div>;
               }
 
               const dayBookings = getBookingsForDay(day);
@@ -231,39 +270,50 @@ export default function AdminCalendarPage() {
               return (
                 <div
                   key={day}
+                  onClick={() => handleDayClick(day)}
                   className={cn(
-                    "min-h-[100px] p-1 border rounded-lg",
-                    isToday(day) && "bg-primary/5 border-primary"
+                    "min-h-[120px] p-2 border rounded-lg transition-colors",
+                    isToday(day) && "bg-primary/5 border-primary",
+                    dayBookings.length > 0 && "cursor-pointer hover:bg-muted/50"
                   )}
                 >
                   <div
                     className={cn(
-                      "text-sm font-medium mb-1",
+                      "text-sm font-medium mb-2",
                       isToday(day) && "text-primary"
                     )}
                   >
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayBookings.slice(0, 3).map((booking) => (
-                      <button
-                        key={booking.id}
-                        onClick={() => handleBookingClick(booking)}
-                        className={cn(
-                          "w-full text-left text-xs p-1 rounded truncate text-white",
-                          statusColors[booking.status]
-                        )}
-                        title={`${booking.serviceType.name} - ${booking.client.user.name}`}
-                      >
-                        {booking.requestedTime && (
-                          <span className="font-medium">{formatTime(booking.requestedTime)} </span>
-                        )}
-                        {booking.serviceType.name}
-                      </button>
-                    ))}
-                    {dayBookings.length > 3 && (
-                      <div className="text-xs text-muted-foreground">
-                        +{dayBookings.length - 3} more
+                    {dayBookings.slice(0, 4).map((booking) => {
+                      const style = getServiceStyle(booking.serviceType.slug);
+                      const isPending = booking.status === "PENDING";
+                      return (
+                        <button
+                          key={booking.id}
+                          onClick={(e) => handleBookingClick(booking, e)}
+                          className={cn(
+                            "w-full text-left text-xs p-1.5 rounded truncate text-white transition-opacity hover:opacity-80",
+                            style.bg,
+                            isPending && "opacity-70 border-2 border-dashed border-white/50"
+                          )}
+                          title={`${booking.serviceType.name} - ${booking.client.user.name} (${booking.dogs.map((d) => d.dog.name).join(", ")})`}
+                        >
+                          <div className="flex items-center gap-1">
+                            {booking.requestedTime && (
+                              <span className="font-semibold">{formatTime(booking.requestedTime)}</span>
+                            )}
+                          </div>
+                          <div className="truncate">
+                            {booking.dogs.map((d) => d.dog.name).join(", ")}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {dayBookings.length > 4 && (
+                      <div className="text-xs text-muted-foreground font-medium">
+                        +{dayBookings.length - 4} more
                       </div>
                     )}
                   </div>
@@ -274,7 +324,7 @@ export default function AdminCalendarPage() {
         </CardContent>
       </Card>
 
-      {/* Upcoming Today */}
+      {/* Today's Schedule */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Today&apos;s Schedule</CardTitle>
@@ -292,7 +342,7 @@ export default function AdminCalendarPage() {
 
             if (todayBookings.length === 0) {
               return (
-                <p className="text-muted-foreground text-center py-4">
+                <p className="text-muted-foreground text-center py-6">
                   No bookings scheduled for today
                 </p>
               );
@@ -300,31 +350,104 @@ export default function AdminCalendarPage() {
 
             return (
               <div className="space-y-3">
-                {todayBookings.map((booking) => (
-                  <div
-                    key={booking.id}
-                    className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleBookingClick(booking)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-2 h-2 rounded-full", statusColors[booking.status])} />
-                      <div>
-                        <div className="font-medium">{booking.serviceType.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {booking.client.user.name} • {booking.dogs.map((d) => d.dog.name).join(", ")}
+                {todayBookings.map((booking) => {
+                  const style = getServiceStyle(booking.serviceType.slug);
+                  const IconComponent = style.icon;
+                  return (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn("p-2 rounded-full text-white", style.bg)}>
+                          <IconComponent className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="font-medium flex items-center gap-2">
+                            {booking.serviceType.name}
+                            <Badge variant={statusBadges[booking.status as keyof typeof statusBadges]?.variant || "secondary"}>
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {booking.client.user.name} - {booking.dogs.map((d) => d.dog.name).join(", ")}
+                          </div>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <div className="font-medium">
+                          {booking.requestedTime || "Time TBD"}
+                        </div>
+                        {booking.duration && (
+                          <div className="text-sm text-muted-foreground">
+                            {booking.duration} min
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm">
-                      {booking.requestedTime || "Time TBD"}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })()}
         </CardContent>
       </Card>
+
+      {/* Day Detail Dialog */}
+      <Dialog open={dayDialogOpen} onOpenChange={setDayDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDay && `${MONTHS[currentDate.getMonth()]} ${selectedDay}, ${currentDate.getFullYear()}`}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedDayBookings.length} booking{selectedDayBookings.length !== 1 ? "s" : ""} scheduled
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            {selectedDayBookings.map((booking) => {
+              const style = getServiceStyle(booking.serviceType.slug);
+              const IconComponent = style.icon;
+              return (
+                <div
+                  key={booking.id}
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    setDayDialogOpen(false);
+                    setSelectedBooking(booking);
+                    setDialogOpen(true);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn("p-2 rounded-full text-white", style.bg)}>
+                      <IconComponent className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{booking.serviceType.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {booking.client.user.name} - {booking.dogs.map((d) => d.dog.name).join(", ")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={statusBadges[booking.status as keyof typeof statusBadges]?.variant || "secondary"} className="text-xs">
+                      {booking.status}
+                    </Badge>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {booking.requestedTime || "Time TBD"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Booking Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -345,53 +468,78 @@ export default function AdminCalendarPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedBooking && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-lg">{selectedBooking.serviceType.name}</h3>
-                <Badge variant={selectedBooking.status === "CONFIRMED" ? "default" : "secondary"}>
-                  {selectedBooking.status}
-                </Badge>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedBooking.client.user.name}</span>
-                  <span className="text-muted-foreground">({selectedBooking.client.user.email})</span>
+          {selectedBooking && (() => {
+            const style = getServiceStyle(selectedBooking.serviceType.slug);
+            const IconComponent = style.icon;
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-3 rounded-full text-white", style.bg)}>
+                    <IconComponent className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">{selectedBooking.serviceType.name}</h3>
+                    <Badge variant={statusBadges[selectedBooking.status as keyof typeof statusBadges]?.variant || "secondary"}>
+                      {selectedBooking.status}
+                    </Badge>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm">
-                  <Dog className="h-4 w-4 text-muted-foreground" />
-                  <span>{selectedBooking.dogs.map((d) => d.dog.name).join(", ")}</span>
+                <div className="space-y-3 bg-muted/30 p-4 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium">{selectedBooking.client.user.name}</div>
+                      <div className="text-sm text-muted-foreground">{selectedBooking.client.user.email}</div>
+                      {selectedBooking.client.phone && (
+                        <div className="text-sm text-muted-foreground">{selectedBooking.client.phone}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Dog className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="font-medium">
+                        {selectedBooking.dogs.map((d) => d.dog.name).join(", ")}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {selectedBooking.dogs.map((d) => d.dog.breed || "Mixed").join(", ")}
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedBooking.requestedTime && (
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <div className="font-medium">{formatTime(selectedBooking.requestedTime)}</div>
+                        {selectedBooking.duration && (
+                          <div className="text-sm text-muted-foreground">{selectedBooking.duration} minutes</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {selectedBooking.requestedTime && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>{formatTime(selectedBooking.requestedTime)}</span>
-                    {selectedBooking.duration && (
-                      <span className="text-muted-foreground">({selectedBooking.duration} min)</span>
-                    )}
+                {selectedBooking.notes && (
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm">
+                    <p className="font-medium text-amber-800 mb-1">Client Notes:</p>
+                    <p className="text-amber-700">{selectedBooking.notes}</p>
                   </div>
                 )}
-              </div>
 
-              {selectedBooking.notes && (
-                <div className="bg-muted/50 p-3 rounded-lg text-sm">
-                  <p className="font-medium mb-1">Notes:</p>
-                  <p>{selectedBooking.notes}</p>
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <span className="font-semibold text-lg">
+                    ${parseFloat(String(selectedBooking.serviceType.basePrice)).toFixed(2)}
+                  </span>
+                  <Button asChild>
+                    <a href="/admin/bookings">Manage Booking</a>
+                  </Button>
                 </div>
-              )}
-
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="font-semibold">${parseFloat(String(selectedBooking.serviceType.basePrice)).toFixed(2)}</span>
-                <Button variant="outline" asChild>
-                  <a href={`/admin/bookings`}>View in Bookings</a>
-                </Button>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
-  Calendar,
+  CalendarDays,
+  ClipboardList,
   FileText,
   DollarSign,
   Video,
@@ -20,8 +21,9 @@ import { Badge } from "@/components/ui/badge";
 
 const sidebarLinks = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Calendar", href: "/admin/calendar", icon: CalendarDays },
+  { name: "Bookings", href: "/admin/bookings", icon: ClipboardList },
   { name: "Clients", href: "/admin/clients", icon: Users },
-  { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Services", href: "/admin/services", icon: FileText },
   { name: "Invoices", href: "/admin/invoices", icon: DollarSign },
   { name: "Content", href: "/admin/content", icon: Video },
