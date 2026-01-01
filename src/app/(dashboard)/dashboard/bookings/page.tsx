@@ -34,7 +34,7 @@ interface Booking {
   serviceType: {
     id: string;
     name: string;
-    price: number;
+    basePrice: string | number;
   };
   dogs: BookingDog[];
   createdAt: string;
@@ -151,7 +151,7 @@ export default function BookingsPage() {
 
             <div className="flex items-center justify-between pt-2 border-t">
               <span className="text-sm text-muted-foreground">
-                ${booking.serviceType.price.toFixed(2)}
+                ${parseFloat(String(booking.serviceType.basePrice)).toFixed(2)}
               </span>
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/dashboard/bookings/${booking.id}`}>View Details</Link>

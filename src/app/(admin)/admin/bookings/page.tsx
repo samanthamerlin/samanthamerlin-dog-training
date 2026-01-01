@@ -53,7 +53,7 @@ interface Booking {
   serviceType: {
     id: string;
     name: string;
-    price: number;
+    basePrice: string | number;
   };
   dogs: BookingDog[];
   client: {
@@ -297,7 +297,7 @@ export default function AdminBookingsPage() {
             )}
 
             <div className="flex items-center justify-between pt-3 border-t">
-              <span className="font-semibold">${booking.serviceType.price.toFixed(2)}</span>
+              <span className="font-semibold">${parseFloat(String(booking.serviceType.basePrice)).toFixed(2)}</span>
 
               {showActions && booking.status === "PENDING" && (
                 <div className="flex gap-2">

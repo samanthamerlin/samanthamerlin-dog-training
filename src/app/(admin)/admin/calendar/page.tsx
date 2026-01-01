@@ -34,7 +34,7 @@ interface Booking {
   serviceType: {
     id: string;
     name: string;
-    price: number;
+    basePrice: string | number;
   };
   dogs: BookingDog[];
   client: {
@@ -385,7 +385,7 @@ export default function AdminCalendarPage() {
               )}
 
               <div className="flex justify-between items-center pt-2 border-t">
-                <span className="font-semibold">${selectedBooking.serviceType.price.toFixed(2)}</span>
+                <span className="font-semibold">${parseFloat(String(selectedBooking.serviceType.basePrice)).toFixed(2)}</span>
                 <Button variant="outline" asChild>
                   <a href={`/admin/bookings`}>View in Bookings</a>
                 </Button>
