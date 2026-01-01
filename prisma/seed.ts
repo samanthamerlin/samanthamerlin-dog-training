@@ -223,6 +223,7 @@ async function main() {
 
   let totalBookings = 0;
   let totalInvoices = 0;
+  let totalServiceRecords = 0;
 
   while (startDate < now) {
     const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
@@ -331,8 +332,28 @@ async function main() {
 
       totalBookings++;
 
-      // Create invoice for completed bookings
-      if (status === BookingStatus.COMPLETED && isPastMonth) {
+      // Create ServiceRecord and Invoice for completed bookings
+      if (status === BookingStatus.COMPLETED) {
+        // Create ServiceRecord
+        await prisma.serviceRecord.create({
+          data: {
+            serviceTypeId: service.id,
+            bookingRequestId: booking.id,
+            dogId: dog.id,
+            serviceDate: bookingDate,
+            duration: duration || 60,
+            unitPrice: Number(service.basePrice),
+            quantity: service.slug === "boarding" ? Math.ceil((duration || 60) / (24 * 60)) : 1,
+            adjustments: 0,
+            total: totalPrice,
+            notes: booking.notes,
+          },
+        });
+        totalServiceRecords++;
+      }
+
+      // Create invoice for completed bookings (past month and current month past dates)
+      if (status === BookingStatus.COMPLETED && (isPastMonth || bookingDate < now)) {
         monthlyInvoiceCounters[monthKey]++;
         const invoiceNumber = generateInvoiceNumber(bookingDate, monthlyInvoiceCounters[monthKey]);
 
@@ -387,6 +408,7 @@ async function main() {
   }
 
   console.log(`  ✓ Created ${totalBookings} bookings`);
+  console.log(`  ✓ Created ${totalServiceRecords} service records`);
   console.log(`  ✓ Created ${totalInvoices} invoices`);
 
   // Create some upcoming bookings (next 2 weeks)
@@ -434,6 +456,7 @@ async function main() {
   console.log(`   • ${createdClients.length} clients`);
   console.log(`   • ${createdClients.reduce((sum, c) => sum + c.dogs.length, 0)} dogs`);
   console.log(`   • ${totalBookings + upcomingCount} total bookings`);
+  console.log(`   • ${totalServiceRecords} service records`);
   console.log(`   • ${totalInvoices} invoices`);
   console.log(`   • 4 service types`);
 

@@ -61,6 +61,7 @@ const defaultServiceColor = { bg: "bg-gray-500", text: "text-gray-700", icon: Do
 const statusBadges = {
   PENDING: { label: "Pending", variant: "secondary" as const },
   CONFIRMED: { label: "Confirmed", variant: "default" as const },
+  COMPLETED: { label: "Completed", variant: "outline" as const },
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -125,7 +126,7 @@ export default function AdminCalendarPage() {
 
     return bookings.filter((booking) => {
       const bookingDate = (booking.confirmedDate || booking.requestedDate).split("T")[0];
-      return bookingDate === dateStr && ["PENDING", "CONFIRMED"].includes(booking.status);
+      return bookingDate === dateStr && ["PENDING", "CONFIRMED", "COMPLETED"].includes(booking.status);
     });
   };
 
@@ -334,7 +335,7 @@ export default function AdminCalendarPage() {
               const bookingDate = new Date(booking.confirmedDate || booking.requestedDate);
               return (
                 bookingDate.toDateString() === today.toDateString() &&
-                ["PENDING", "CONFIRMED"].includes(booking.status)
+                ["PENDING", "CONFIRMED", "COMPLETED"].includes(booking.status)
               );
             });
 
