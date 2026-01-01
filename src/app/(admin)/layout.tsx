@@ -11,7 +11,6 @@ import {
   Video,
   Mail,
   BarChart,
-  Settings,
   LogOut,
   Menu,
   ChevronLeft
@@ -26,9 +25,8 @@ const sidebarLinks = [
   { name: "Services", href: "/admin/services", icon: FileText },
   { name: "Invoices", href: "/admin/invoices", icon: DollarSign },
   { name: "Content", href: "/admin/content", icon: Video },
-  { name: "Marketing", href: "/admin/marketing", icon: Mail },
+  { name: "Campaigns", href: "/admin/campaigns", icon: Mail },
   { name: "Reports", href: "/admin/reports", icon: BarChart },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 async function SignOutButton() {
