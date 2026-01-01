@@ -5,12 +5,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...\n");
 
-  // Clean up old service types with wrong slugs
-  console.log("Cleaning up old service types...");
-  await prisma.serviceType.deleteMany({
-    where: {
-      slug: { in: ["hiking", "grooming-nails"] }
-    }
+  // Update old service types with wrong slugs to new values
+  console.log("Updating old service types...");
+  await prisma.serviceType.updateMany({
+    where: { slug: "hiking" },
+    data: { slug: "day-hike", name: "Day Hike", isActive: true }
+  });
+  await prisma.serviceType.updateMany({
+    where: { slug: "grooming-nails" },
+    data: { slug: "grooming", name: "Grooming", basePrice: 50.00, duration: 60, isActive: true }
   });
 
   // Delete existing invoices to avoid duplicate invoice number errors
