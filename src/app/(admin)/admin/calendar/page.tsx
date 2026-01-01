@@ -294,19 +294,17 @@ export default function AdminCalendarPage() {
                           key={booking.id}
                           onClick={(e) => handleBookingClick(booking, e)}
                           className={cn(
-                            "w-full text-left text-xs p-1.5 rounded truncate text-white transition-opacity hover:opacity-80",
+                            "w-full text-left text-xs p-1.5 rounded text-white transition-opacity hover:opacity-80",
                             style.bg,
                             isPending && "opacity-70 border-2 border-dashed border-white/50"
                           )}
                           title={`${booking.serviceType.name} - ${booking.client.user.name} (${booking.dogs.map((d) => d.dog.name).join(", ")})`}
                         >
-                          <div className="flex items-center gap-1">
-                            {booking.requestedTime && (
-                              <span className="font-semibold">{formatTime(booking.requestedTime)}</span>
-                            )}
-                          </div>
-                          <div className="truncate">
+                          <div className="font-semibold truncate">
                             {booking.dogs.map((d) => d.dog.name).join(", ")}
+                          </div>
+                          <div className="truncate opacity-90 text-[10px]">
+                            {booking.serviceType.name}
                           </div>
                         </button>
                       );
