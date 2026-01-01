@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Samantha Merlin Dog Training Platform
 
-## Getting Started
+A full-stack Next.js application for dog training services featuring client management, booking system, invoicing, and paid training content.
 
-First, run the development server:
+## Live Site
+
+- **Production:** https://app.samanthamerlin.com
+- **Render Dashboard:** https://dashboard.render.com
+
+## Tech Stack
+
+- **Framework:** Next.js 16, React 19, TypeScript
+- **Database:** PostgreSQL (Render)
+- **ORM:** Prisma
+- **Auth:** Auth.js v5 (magic links via Resend)
+- **Email:** Resend
+- **Styling:** Tailwind CSS 4, shadcn/ui
+
+## Local Development
+
+### Prerequisites
+- Node.js 22+
+- Docker (for local PostgreSQL)
+
+### Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Start local PostgreSQL
+docker start magicpaws-postgres
+
+# Generate Prisma client
+npx prisma generate
+
+# Push schema to database
+npx prisma db push
+
+# Seed test data
+npx prisma db seed
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Local app runs at http://localhost:3001
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Local Database
+```
+DATABASE_URL="postgresql://magicpaws:magicpaws123@localhost:5433/magicpaws?schema=public"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Testing Login (Development)
+Magic links are logged to the terminal in dev mode - no email needed.
 
-## Learn More
+## Production Deployment (Render)
 
-To learn more about Next.js, take a look at the following resources:
+### Services
+| Service | Type | URL |
+|---------|------|-----|
+| samanthamerlin-dog-training | Web Service | https://app.samanthamerlin.com |
+| samanthamerlin-db | PostgreSQL | Internal |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Environment Variables (Render)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Render PostgreSQL internal URL |
+| `AUTH_SECRET` | Generate with `openssl rand -base64 32` |
+| `AUTH_TRUST_HOST` | `true` |
+| `AUTH_URL` | `https://app.samanthamerlin.com` |
+| `AUTH_RESEND_KEY` | Resend API key |
+| `EMAIL_FROM` | `Samantha Merlin <noreply@samanthamerlin.com>` |
+| `ADMIN_EMAIL` | Email to auto-assign admin role |
+| `NEXT_PUBLIC_APP_URL` | `https://app.samanthamerlin.com` |
+| `NODE_ENV` | `production` |
 
-## Deploy on Vercel
+### Build & Start Commands
+- **Build:** `npm install && npx prisma generate && npm run build`
+- **Start:** `npm run start`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Database Management (Render Shell)
+```bash
+# Push schema changes
+npx prisma db push
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Seed database
+npx prisma db seed
+
+# Query database
+psql $DATABASE_URL -c "SELECT * FROM users;"
+```
+
+## DNS Configuration (Squarespace)
+
+| Type | Host | Value |
+|------|------|-------|
+| CNAME | app | samanthamerlin-dog-training.onrender.com |
+| TXT | resend._domainkey | (DKIM key from Resend) |
+| TXT | send | v=spf1 include:amazonses.com ~all |
+| MX | send | feedback-smtp.us-east-1.amazonses.com |
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── (marketing)/     # Public pages (/, /about, /services, etc.)
+│   ├── (auth)/          # /login, /verify
+│   ├── (dashboard)/     # Client portal (/dashboard/*)
+│   ├── (admin)/         # Admin portal (/admin/*)
+│   └── api/             # API routes
+├── components/          # React components
+└── lib/                 # Utilities (auth, db, email, stripe)
+```
+
+## Test Accounts (Seeded)
+
+| Email | Role |
+|-------|------|
+| samantha@magicpaws.com | ADMIN |
+| john.smith@example.com | CLIENT |
+| sarah.johnson@example.com | CLIENT |
+| michael.chen@example.com | CLIENT |
+
+## External Services
+
+| Service | Dashboard |
+|---------|-----------|
+| Render | https://dashboard.render.com |
+| Resend | https://resend.com |
+| GitHub | https://github.com/samanthamerlin/samanthamerlin-dog-training |
