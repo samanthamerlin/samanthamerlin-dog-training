@@ -52,7 +52,7 @@ interface Booking {
 const serviceColors: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
   "day-hike": { bg: "bg-emerald-500", text: "text-emerald-700", icon: MapPin },
   "boarding": { bg: "bg-purple-500", text: "text-purple-700", icon: Home },
-  "private-training": { bg: "bg-blue-500", text: "text-blue-700", icon: GraduationCap },
+  "training": { bg: "bg-blue-500", text: "text-blue-700", icon: GraduationCap },
   "grooming": { bg: "bg-pink-500", text: "text-pink-700", icon: Scissors },
 };
 
