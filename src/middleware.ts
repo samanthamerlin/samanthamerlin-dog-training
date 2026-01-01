@@ -39,7 +39,9 @@ export default auth((req) => {
   }
 
   // Redirect admins from client dashboard to admin dashboard
-  if (pathname.startsWith("/dashboard") && session.user.role === "ADMIN") {
+  // Allow bypass with ?view=client parameter (for "Client View" button)
+  const viewParam = req.nextUrl.searchParams.get("view");
+  if (pathname.startsWith("/dashboard") && session.user.role === "ADMIN" && viewParam !== "client") {
     return NextResponse.redirect(new URL("/admin", req.url));
   }
 

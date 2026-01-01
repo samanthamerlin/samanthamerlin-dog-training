@@ -80,7 +80,7 @@ function Sidebar() {
       {/* Back to Client View */}
       <div className="border-t p-4 space-y-2">
         <Button variant="outline" size="sm" className="w-full justify-start" asChild>
-          <Link href="/dashboard">
+          <Link href="/dashboard?view=client">
             <ChevronLeft className="mr-2 h-4 w-4" />
             Client View
           </Link>
