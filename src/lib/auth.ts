@@ -41,9 +41,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     // Magic link for clients (low friction)
     Resend({
-      from: process.env.EMAIL_FROM || "Magic Paws <noreply@samanthamerlin.com>",
+      apiKey: process.env.AUTH_RESEND_KEY || process.env.RESEND_API_KEY,
+      from: process.env.EMAIL_FROM || "Samantha Merlin <noreply@samanthamerlin.com>",
       // In development, log the magic link to console
-      ...(isDev && !process.env.RESEND_API_KEY && {
+      ...(isDev && !process.env.AUTH_RESEND_KEY && !process.env.RESEND_API_KEY && {
         sendVerificationRequest: async ({ identifier, url }) => {
           console.log("\n" + "=".repeat(60));
           console.log("MAGIC LINK LOGIN (Development Mode)");
