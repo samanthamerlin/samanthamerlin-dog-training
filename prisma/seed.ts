@@ -245,11 +245,18 @@ async function main() {
       const service = randomItem(createdServices);
 
       const bookingDate = randomDate(startDate, monthEnd > now ? now : monthEnd);
-      const requestedTime = `${Math.floor(Math.random() * 4) + 8}:${Math.random() > 0.5 ? "00" : "30"} AM`;
+      const hour = Math.floor(Math.random() * 4) + 8;
+      const minute = Math.random() > 0.5 ? 0 : 30;
+      const requestedTime = `${hour}:${minute === 0 ? "00" : "30"} AM`;
+
+      // Create confirmedTime as a DateTime (same day, specific time)
+      const confirmedTimeDate = new Date(bookingDate);
+      confirmedTimeDate.setHours(hour, minute, 0, 0);
 
       // Determine status based on date
       let status: BookingStatus;
-      let confirmedDate = null;
+      let confirmedDate: Date | null = null;
+      let confirmedTime: Date | null = null;
 
       if (isPastMonth) {
         // Past bookings: mostly completed, some cancelled/no-show
@@ -258,6 +265,7 @@ async function main() {
         else if (rand < 0.92) status = BookingStatus.CANCELLED;
         else status = BookingStatus.NO_SHOW;
         confirmedDate = bookingDate;
+        confirmedTime = confirmedTimeDate;
       } else if (isCurrentMonth) {
         // Current month: mix of completed, confirmed, pending
         const rand = Math.random();
@@ -265,10 +273,12 @@ async function main() {
           if (rand < 0.9) status = BookingStatus.COMPLETED;
           else status = BookingStatus.NO_SHOW;
           confirmedDate = bookingDate;
+          confirmedTime = confirmedTimeDate;
         } else {
           if (rand < 0.7) {
             status = BookingStatus.CONFIRMED;
             confirmedDate = bookingDate;
+            confirmedTime = confirmedTimeDate;
           } else {
             status = BookingStatus.PENDING;
           }
@@ -276,7 +286,10 @@ async function main() {
       } else {
         // Future (shouldn't happen with our date logic, but just in case)
         status = Math.random() > 0.3 ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
-        if (status === BookingStatus.CONFIRMED) confirmedDate = bookingDate;
+        if (status === BookingStatus.CONFIRMED) {
+          confirmedDate = bookingDate;
+          confirmedTime = confirmedTimeDate;
+        }
       }
 
       // Calculate duration for boarding (1-7 days)
@@ -297,7 +310,7 @@ async function main() {
           requestedDate: bookingDate,
           requestedTime,
           confirmedDate,
-          confirmedTime: confirmedDate ? requestedTime : null,
+          confirmedTime,
           duration,
           notes: Math.random() > 0.7 ? randomItem([
             "Please use back gate",
@@ -388,8 +401,13 @@ async function main() {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 14) + 1);
 
+    const hour = Math.floor(Math.random() * 4) + 8;
+    const minute = Math.random() > 0.5 ? 0 : 30;
     const status = Math.random() > 0.3 ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
-    const requestedTime = `${Math.floor(Math.random() * 4) + 8}:${Math.random() > 0.5 ? "00" : "30"} AM`;
+    const requestedTime = `${hour}:${minute === 0 ? "00" : "30"} AM`;
+
+    const confirmedTimeDate = new Date(futureDate);
+    confirmedTimeDate.setHours(hour, minute, 0, 0);
 
     await prisma.bookingRequest.create({
       data: {
@@ -399,7 +417,7 @@ async function main() {
         requestedDate: futureDate,
         requestedTime,
         confirmedDate: status === BookingStatus.CONFIRMED ? futureDate : null,
-        confirmedTime: status === BookingStatus.CONFIRMED ? requestedTime : null,
+        confirmedTime: status === BookingStatus.CONFIRMED ? confirmedTimeDate : null,
         duration: service.duration,
         dogs: {
           create: { dogId: dog.id }
