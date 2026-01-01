@@ -4,15 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Magic Paws Dog Training Platform - a full-stack Next.js application for a dog training business. Features client management, booking system, invoicing, and paid training content platform.
+Magic Paws Dog Training Platform - a full-stack Next.js application for Samantha Merlin's dog training business in Mill Valley, CA. Features client management, booking system, invoicing, calendar view, and paid training content platform.
+
+**Live URL:** https://app.samanthamerlin.com (deployed on Render)
 
 ## Tech Stack
 
 - **Framework:** Next.js 16.1.1, React 19, TypeScript
 - **Styling:** Tailwind CSS 4, shadcn/ui components
-- **Database:** PostgreSQL (Docker container `magicpaws-postgres` on port 5433)
+- **Database:** PostgreSQL (Render production / Docker local on port 5433)
 - **ORM:** Prisma 5.22
-- **Auth:** Auth.js v5 (magic links + Google OAuth, JWT sessions for Edge compatibility)
+- **Auth:** Auth.js v5 (magic links via Resend, JWT sessions for Edge compatibility)
 - **Email:** Resend (dev mode logs magic links to console)
 - **Payments:** Stripe (lazy-loaded)
 
@@ -95,11 +97,56 @@ Use `@/*` for imports from `./src/*` (e.g., `@/lib/db`, `@/components/ui/button`
 
 **Marketing:** EmailCampaign, EmailRecipient, NotificationPreference
 
+## Deployment (Render)
+
+**GitHub Repo:** https://github.com/samanthamerlin/samanthamerlin-dog-training
+
+The app auto-deploys from the `main` branch. To reseed the production database:
+1. Go to Render Dashboard → Web Service → Shell
+2. Run: `npx prisma db seed`
+
+## Services Offered
+
+1. **Training** - Private training sessions ($140/hr) - Blue on calendar
+2. **Day Hike** - Group hikes on Marin trails ($55/session) - Green on calendar
+3. **Boarding** - Home boarding ($100/day) - Purple on calendar
+4. **Grooming** - Professional grooming ($50/session) - Pink on calendar
+
+## Admin Features
+
+- **Dashboard** (`/admin`) - Stats: clients, pending bookings, completed sessions, revenue
+- **Calendar** (`/admin/calendar`) - Visual calendar with color-coded services, shows dog name + service type
+- **Bookings** (`/admin/bookings`) - Approve/reject booking requests
+- **Clients** (`/admin/clients`) - View all clients and their dogs
+- **Services** (`/admin/services`) - Service records for invoicing
+- **Invoices** (`/admin/invoices`) - Generate and manage invoices
+- **Reports** (`/admin/reports`) - Revenue reports with service breakdown
+- **Campaigns** (`/admin/campaigns`) - Email marketing campaigns
+
+## Middleware Behavior
+
+- Admins logging in are redirected to `/admin` (not `/dashboard`)
+- Admins can view client dashboard via "Client View" button (uses `?view=client` param)
+- Non-admins cannot access `/admin/*` routes
+
+## Seed Data
+
+The seed creates 2 years of historical data:
+- 25 clients with Marin County addresses
+- 40+ dogs with various breeds
+- 400+ bookings across all service types
+- ServiceRecord entries for completed bookings
+- Invoices with realistic payment status (88% paid, 7% sent, 5% overdue)
+- 20 upcoming bookings for next 2 weeks
+
 ## Known Issues
 
-1. `/admin/clients` page needs to be created (currently 404)
-2. `/dashboard/bookings/new` booking form may need implementation
-3. Next.js middleware deprecation warning (recommends "proxy" pattern)
+1. Next.js middleware deprecation warning (recommends "proxy" pattern)
+
+## Pending Tasks
+
+1. **Reseed production database** - Run `npx prisma db seed` on Render to populate ServiceRecord data
+2. Test all admin pages after reseed to confirm data displays correctly
 
 ## Environment Variables
 
