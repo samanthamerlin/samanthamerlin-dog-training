@@ -38,6 +38,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  // Redirect admins from client dashboard to admin dashboard
+  if (pathname.startsWith("/dashboard") && session.user.role === "ADMIN") {
+    return NextResponse.redirect(new URL("/admin", req.url));
+  }
+
   return NextResponse.next();
 });
 
