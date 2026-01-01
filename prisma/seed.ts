@@ -2,30 +2,58 @@ import { PrismaClient, UserRole, BookingStatus, InvoiceStatus, TrainingLevel } f
 
 const prisma = new PrismaClient();
 
+// Helper to generate random date within a range
+function randomDate(start: Date, end: Date): Date {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
+
+// Helper to pick random item from array
+function randomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Helper to generate invoice number
+function generateInvoiceNumber(date: Date, index: number): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `INV-${year}${month}-${String(index).padStart(3, "0")}`;
+}
+
+// Sample data
+const firstNames = ["Emma", "Liam", "Olivia", "Noah", "Ava", "Oliver", "Isabella", "William", "Sophia", "James", "Mia", "Benjamin", "Charlotte", "Lucas", "Amelia", "Henry", "Harper", "Alexander", "Evelyn", "Sebastian", "Abigail", "Jack", "Emily", "Aiden", "Elizabeth", "Matthew", "Sofia", "Samuel", "Avery", "David"];
+const lastNames = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson"];
+const cities = ["Mill Valley", "Sausalito", "Tiburon", "Corte Madera", "Larkspur", "San Rafael", "Kentfield", "Ross", "Fairfax", "San Anselmo"];
+const streets = ["Oak Street", "Pine Avenue", "Maple Lane", "Cedar Road", "Elm Court", "Birch Way", "Willow Drive", "Redwood Boulevard", "Sequoia Place", "Cypress Circle"];
+const dogNames = ["Max", "Bella", "Charlie", "Luna", "Cooper", "Daisy", "Buddy", "Sadie", "Rocky", "Molly", "Bear", "Bailey", "Duke", "Maggie", "Tucker", "Sophie", "Jack", "Chloe", "Oliver", "Penny", "Zeus", "Zoey", "Toby", "Lola", "Finn", "Ruby", "Murphy", "Rosie", "Leo", "Lily", "Louie", "Gracie", "Bentley", "Stella", "Milo", "Roxy", "Bruno", "Coco", "Oscar", "Ellie", "Winston", "Nala", "Teddy", "Piper", "Gus", "Millie", "Archie", "Winnie", "Rex", "Scout"];
+const breeds = ["Golden Retriever", "Labrador Retriever", "German Shepherd", "French Bulldog", "Poodle", "Beagle", "Australian Shepherd", "Cavalier King Charles Spaniel", "Dachshund", "Border Collie", "Siberian Husky", "Shih Tzu", "Boston Terrier", "Pembroke Welsh Corgi", "Cocker Spaniel", "Bernese Mountain Dog", "Boxer", "Maltese", "Vizsla", "Weimaraner", "Mixed Breed", "Labradoodle", "Goldendoodle", "Cockapoo", "Pomsky"];
+
 async function main() {
-  console.log("🌱 Seeding database...\n");
+  console.log("🌱 Seeding database with 2 years of historical data...\n");
 
-  // Update old service types with wrong slugs to new values
-  console.log("Updating old service types...");
-  await prisma.serviceType.updateMany({
-    where: { slug: "hiking" },
-    data: { slug: "day-hike", name: "Day Hike", isActive: true }
-  });
-  await prisma.serviceType.updateMany({
-    where: { slug: "grooming-nails" },
-    data: { slug: "grooming", name: "Grooming", basePrice: 50.00, duration: 60, isActive: true }
-  });
-
-  // Delete existing invoices to avoid duplicate invoice number errors
-  console.log("Cleaning up old invoices...");
+  // Clean up existing data in correct order (respecting foreign keys)
+  console.log("Cleaning up existing data...");
+  await prisma.lessonProgress.deleteMany({});
+  await prisma.tierPurchase.deleteMany({});
+  await prisma.subscription.deleteMany({});
   await prisma.invoiceItem.deleteMany({});
+  await prisma.payment.deleteMany({});
   await prisma.invoice.deleteMany({});
+  await prisma.serviceRecord.deleteMany({});
+  await prisma.bookingDog.deleteMany({});
+  await prisma.bookingRequest.deleteMany({});
+  await prisma.dog.deleteMany({});
+  await prisma.clientProfile.deleteMany({});
+  await prisma.notificationPreference.deleteMany({});
+  await prisma.emailRecipient.deleteMany({});
+  await prisma.emailCampaign.deleteMany({});
+  await prisma.user.deleteMany({ where: { role: { not: UserRole.ADMIN } } });
+  console.log("  ✓ Cleaned up existing data");
 
-  // Create admin user
-  console.log("Creating admin user...");
+  // Create or update admin user
+  console.log("\nCreating admin user...");
   const admin = await prisma.user.upsert({
     where: { email: "samantha@magicpaws.com" },
-    update: {},
+    update: { name: "Samantha Merlin" },
     create: {
       email: "samantha@magicpaws.com",
       name: "Samantha Merlin",
@@ -35,208 +63,11 @@ async function main() {
   });
   console.log(`  ✓ Admin: ${admin.email}`);
 
-  // Create sample clients
-  console.log("\nCreating sample clients...");
-
-  const clients = [
-    {
-      email: "john.smith@example.com",
-      name: "John Smith",
-      phone: "(415) 555-1234",
-      city: "Mill Valley",
-      address: "123 Mill Valley Ave",
-      emergencyContact: "Jane Smith",
-      emergencyPhone: "(415) 555-1235",
-      notes: "Prefers morning appointments",
-    },
-    {
-      email: "sarah.johnson@example.com",
-      name: "Sarah Johnson",
-      phone: "(415) 555-2345",
-      city: "Mill Valley",
-      address: "456 Throckmorton Ave",
-      emergencyContact: "Mike Johnson",
-      emergencyPhone: "(415) 555-2346",
-      notes: "Has two dogs, often books together",
-    },
-    {
-      email: "michael.chen@example.com",
-      name: "Michael Chen",
-      phone: "(415) 555-3456",
-      city: "Mill Valley",
-      address: "789 Cascade Dr",
-      emergencyContact: "Lisa Chen",
-      emergencyPhone: "(415) 555-3457",
-      notes: "New client, referred by Sarah Johnson",
-    },
-    {
-      email: "alice.thompson@example.com",
-      name: "Alice Thompson",
-      phone: "(415) 555-4567",
-      city: "Sausalito",
-      address: "101 Bridgeway",
-      emergencyContact: "Tom Thompson",
-      emergencyPhone: "(415) 555-4568",
-      notes: "Works from home, flexible schedule",
-    },
-    {
-      email: "bob.martinez@example.com",
-      name: "Bob Martinez",
-      phone: "(415) 555-5678",
-      city: "San Rafael",
-      address: "202 Fourth Street",
-      emergencyContact: "Maria Martinez",
-      emergencyPhone: "(415) 555-5679",
-      notes: "Weekend appointments preferred",
-    },
-    {
-      email: "carol.williams@example.com",
-      name: "Carol Williams",
-      phone: "(415) 555-6789",
-      city: "Tiburon",
-      address: "303 Main Street",
-      emergencyContact: "David Williams",
-      emergencyPhone: "(415) 555-6790",
-      notes: "Has elderly dog, needs gentle handling",
-    },
-  ];
-
-  const createdClients = [];
-  for (const clientData of clients) {
-    const user = await prisma.user.upsert({
-      where: { email: clientData.email },
-      update: {},
-      create: {
-        email: clientData.email,
-        name: clientData.name,
-        role: UserRole.CLIENT,
-        emailVerified: new Date(),
-        clientProfile: {
-          create: {
-            phone: clientData.phone,
-            city: clientData.city,
-            address: clientData.address,
-            emergencyContact: clientData.emergencyContact,
-            emergencyPhone: clientData.emergencyPhone,
-            notes: clientData.notes,
-          },
-        },
-        notificationPreference: {
-          create: {
-            bookingReminders: true,
-            bookingUpdates: true,
-            invoiceNotifications: true,
-            marketingEmails: true,
-            trainingUpdates: true,
-          },
-        },
-      },
-      include: { clientProfile: true },
-    });
-    createdClients.push(user);
-    console.log(`  ✓ Client: ${user.name}`);
-  }
-
-  // Create sample dogs
-  console.log("\nCreating sample dogs...");
-  const dogData = [
-    {
-      name: "Max",
-      breed: "Golden Retriever",
-      weight: 70,
-      temperament: "Very friendly, loves treats. Working on leash reactivity.",
-      medicalConditions: "No known allergies",
-      trainingLevel: TrainingLevel.INTERMEDIATE,
-      clientId: createdClients[0].clientProfile!.id,
-    },
-    {
-      name: "Luna",
-      breed: "Australian Shepherd",
-      weight: 45,
-      temperament: "High energy, very smart. Needs lots of mental stimulation.",
-      dietaryNeeds: "Sensitive stomach - no chicken treats",
-      trainingLevel: TrainingLevel.BASIC,
-      clientId: createdClients[1].clientProfile!.id,
-    },
-    {
-      name: "Cooper",
-      breed: "Labrador Mix",
-      weight: 65,
-      temperament: "Calm, well-trained. Good with other dogs.",
-      medicalConditions: "Hip dysplasia - avoid jumping",
-      trainingLevel: TrainingLevel.ADVANCED,
-      clientId: createdClients[1].clientProfile!.id,
-    },
-    {
-      name: "Bella",
-      breed: "French Bulldog",
-      weight: 25,
-      temperament: "Sweet but stubborn. Food motivated.",
-      medicalConditions: "Brachycephalic - monitor in heat",
-      trainingLevel: TrainingLevel.BASIC,
-      clientId: createdClients[2].clientProfile!.id,
-    },
-    {
-      name: "Buddy",
-      breed: "Beagle",
-      weight: 28,
-      temperament: "Friendly and curious. Strong prey drive.",
-      medicalConditions: "None",
-      trainingLevel: TrainingLevel.BASIC,
-      clientId: createdClients[3].clientProfile!.id,
-    },
-    {
-      name: "Daisy",
-      breed: "Poodle Mix",
-      weight: 35,
-      temperament: "Intelligent, eager to please. Good with kids.",
-      dietaryNeeds: "Grain-free diet",
-      trainingLevel: TrainingLevel.INTERMEDIATE,
-      clientId: createdClients[3].clientProfile!.id,
-    },
-    {
-      name: "Rocky",
-      breed: "German Shepherd",
-      weight: 85,
-      temperament: "Protective, loyal. Needs confident handling.",
-      medicalConditions: "Allergies to grass",
-      trainingLevel: TrainingLevel.INTERMEDIATE,
-      clientId: createdClients[4].clientProfile!.id,
-    },
-    {
-      name: "Molly",
-      breed: "Senior Labrador",
-      weight: 60,
-      temperament: "Gentle, patient. Low energy.",
-      medicalConditions: "Arthritis - needs joint supplements",
-      trainingLevel: TrainingLevel.ADVANCED,
-      clientId: createdClients[5].clientProfile!.id,
-    },
-  ];
-
-  const createdDogs = [];
-  for (const data of dogData) {
-    const dog = await prisma.dog.create({
-      data: {
-        name: data.name,
-        breed: data.breed,
-        weight: data.weight,
-        temperament: data.temperament,
-        medicalConditions: data.medicalConditions,
-        dietaryNeeds: data.dietaryNeeds,
-        trainingLevel: data.trainingLevel,
-        client: { connect: { id: data.clientId } },
-      },
-    });
-    createdDogs.push(dog);
-    console.log(`  ✓ Dog: ${dog.name} (${dog.breed})`);
-  }
-
   // Create service types
   console.log("\nCreating service types...");
   const serviceTypes = [
     {
-      name: "Private Dog Training",
+      name: "Private Training",
       slug: "training",
       description: "One-on-one training sessions tailored to your dog's specific needs and your family's goals.",
       basePrice: 140.00,
@@ -277,538 +108,318 @@ async function main() {
     },
   ];
 
-  const createdServices = [];
+  // Delete old service types and create fresh ones
+  await prisma.serviceType.deleteMany({});
+  const createdServices: Awaited<ReturnType<typeof prisma.serviceType.create>>[] = [];
   for (const service of serviceTypes) {
-    const svc = await prisma.serviceType.upsert({
-      where: { slug: service.slug },
-      update: service,
-      create: service,
-    });
+    const svc = await prisma.serviceType.create({ data: service });
     createdServices.push(svc);
-    console.log(`  ✓ Service: ${svc.name}`);
+    console.log(`  ✓ Service: ${svc.name} ($${svc.basePrice})`);
   }
 
-  // Create booking requests
-  console.log("\nCreating booking requests...");
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(10, 0, 0, 0);
+  const trainingService = createdServices.find(s => s.slug === "training")!;
+  const hikeService = createdServices.find(s => s.slug === "day-hike")!;
+  const boardingService = createdServices.find(s => s.slug === "boarding")!;
+  const groomingService = createdServices.find(s => s.slug === "grooming")!;
 
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  nextWeek.setHours(14, 0, 0, 0);
+  // Create 25 clients with varying join dates over 2 years
+  console.log("\nCreating clients...");
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const now = new Date();
 
-  // Confirmed booking for Max
-  const booking1 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[0].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[0].id } },
-      status: BookingStatus.CONFIRMED,
-      requestedDate: tomorrow,
-      requestedTime: "morning",
-      notes: "Working on leash reactivity, bring high-value treats",
-      confirmedDate: tomorrow,
-      confirmedTime: tomorrow,
-      dogs: {
-        create: { dogId: createdDogs[0].id },
+  const createdClients: { user: any; profile: any; dogs: any[] }[] = [];
+  const usedEmails = new Set<string>();
+  const usedDogNames = new Set<string>();
+
+  for (let i = 0; i < 25; i++) {
+    const firstName = randomItem(firstNames);
+    const lastName = randomItem(lastNames);
+    let email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`;
+
+    // Ensure unique email
+    let counter = 1;
+    while (usedEmails.has(email)) {
+      email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${counter}@example.com`;
+      counter++;
+    }
+    usedEmails.add(email);
+
+    const joinDate = randomDate(twoYearsAgo, now);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: `${firstName} ${lastName}`,
+        role: UserRole.CLIENT,
+        emailVerified: joinDate,
+        createdAt: joinDate,
       },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking1.dogs[0].dog.name} - ${booking1.status}`);
+    });
 
-  // Pending booking for Luna
-  const booking2 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[1].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[0].id } },
-      status: BookingStatus.PENDING,
-      requestedDate: nextWeek,
-      requestedTime: "afternoon",
-      notes: "First session - behavior assessment",
-      dogs: {
-        create: { dogId: createdDogs[1].id },
+    const profile = await prisma.clientProfile.create({
+      data: {
+        userId: user.id,
+        phone: `(415) 555-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`,
+        address: `${Math.floor(Math.random() * 999) + 1} ${randomItem(streets)}`,
+        city: randomItem(cities),
+        state: "CA",
+        zipCode: `949${String(Math.floor(Math.random() * 100)).padStart(2, "0")}`,
+        emergencyContact: `${randomItem(firstNames)} ${lastName}`,
+        emergencyPhone: `(415) 555-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`,
+        createdAt: joinDate,
       },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking2.dogs[0].dog.name} - ${booking2.status}`);
+    });
 
-  // Confirmed nail trim for Bella
-  const booking3 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[2].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[3].id } },
-      status: BookingStatus.CONFIRMED,
-      requestedDate: nextWeek,
-      requestedTime: "afternoon",
-      notes: "Nail trim, dog can be anxious",
-      confirmedDate: nextWeek,
-      confirmedTime: nextWeek,
-      dogs: {
-        create: { dogId: createdDogs[3].id },
+    // Create 1-3 dogs per client
+    const numDogs = Math.floor(Math.random() * 3) + 1;
+    const dogs: any[] = [];
+
+    for (let j = 0; j < numDogs; j++) {
+      let dogName = randomItem(dogNames);
+      // Ensure somewhat unique dog names (allow some duplicates across clients)
+      let attempts = 0;
+      while (usedDogNames.has(`${profile.id}-${dogName}`) && attempts < 10) {
+        dogName = randomItem(dogNames);
+        attempts++;
+      }
+      usedDogNames.add(`${profile.id}-${dogName}`);
+
+      const birthDate = new Date();
+      birthDate.setFullYear(birthDate.getFullYear() - Math.floor(Math.random() * 12) - 1);
+      birthDate.setMonth(Math.floor(Math.random() * 12));
+
+      const dog = await prisma.dog.create({
+        data: {
+          clientId: profile.id,
+          name: dogName,
+          breed: randomItem(breeds),
+          birthDate,
+          weight: Math.floor(Math.random() * 80) + 10,
+          gender: Math.random() > 0.5 ? "MALE" : "FEMALE",
+          isNeutered: Math.random() > 0.2,
+          trainingLevel: randomItem([TrainingLevel.NONE, TrainingLevel.BASIC, TrainingLevel.INTERMEDIATE, TrainingLevel.ADVANCED]),
+          goodWithOtherDogs: Math.random() > 0.15,
+          goodWithChildren: Math.random() > 0.1,
+          isActive: true,
+        },
+      });
+      dogs.push(dog);
+    }
+
+    createdClients.push({ user, profile, dogs });
+    console.log(`  ✓ Client: ${user.name} (${dogs.length} dog${dogs.length > 1 ? "s" : ""}) - joined ${joinDate.toLocaleDateString()}`);
+  }
+
+  // Create bookings and invoices spread over 2 years
+  console.log("\nCreating 2 years of bookings and invoices...");
+
+  let invoiceCounter = 1;
+  const monthlyInvoiceCounters: Record<string, number> = {};
+
+  // Generate bookings for each month over the past 2 years
+  const startDate = new Date(twoYearsAgo);
+  startDate.setDate(1);
+
+  let totalBookings = 0;
+  let totalInvoices = 0;
+
+  while (startDate < now) {
+    const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
+    monthlyInvoiceCounters[monthKey] = 0;
+
+    const monthEnd = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+    const isCurrentMonth = startDate.getMonth() === now.getMonth() && startDate.getFullYear() === now.getFullYear();
+    const isPastMonth = startDate < new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Generate 15-30 bookings per month (busier in summer)
+    const isSummer = startDate.getMonth() >= 5 && startDate.getMonth() <= 8;
+    const numBookings = Math.floor(Math.random() * 15) + (isSummer ? 25 : 15);
+
+    for (let i = 0; i < numBookings; i++) {
+      const client = randomItem(createdClients);
+      // Only use clients who had joined by this date
+      if (new Date(client.user.createdAt) > monthEnd) continue;
+
+      const dog = randomItem(client.dogs);
+      const service = randomItem(createdServices);
+
+      const bookingDate = randomDate(startDate, monthEnd > now ? now : monthEnd);
+      const requestedTime = `${Math.floor(Math.random() * 4) + 8}:${Math.random() > 0.5 ? "00" : "30"} AM`;
+
+      // Determine status based on date
+      let status: BookingStatus;
+      let confirmedDate = null;
+
+      if (isPastMonth) {
+        // Past bookings: mostly completed, some cancelled/no-show
+        const rand = Math.random();
+        if (rand < 0.85) status = BookingStatus.COMPLETED;
+        else if (rand < 0.92) status = BookingStatus.CANCELLED;
+        else status = BookingStatus.NO_SHOW;
+        confirmedDate = bookingDate;
+      } else if (isCurrentMonth) {
+        // Current month: mix of completed, confirmed, pending
+        const rand = Math.random();
+        if (bookingDate < now) {
+          if (rand < 0.9) status = BookingStatus.COMPLETED;
+          else status = BookingStatus.NO_SHOW;
+          confirmedDate = bookingDate;
+        } else {
+          if (rand < 0.7) {
+            status = BookingStatus.CONFIRMED;
+            confirmedDate = bookingDate;
+          } else {
+            status = BookingStatus.PENDING;
+          }
+        }
+      } else {
+        // Future (shouldn't happen with our date logic, but just in case)
+        status = Math.random() > 0.3 ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
+        if (status === BookingStatus.CONFIRMED) confirmedDate = bookingDate;
+      }
+
+      // Calculate duration for boarding (1-7 days)
+      let duration = service.duration;
+      let totalPrice = Number(service.basePrice);
+
+      if (service.slug === "boarding") {
+        const days = Math.floor(Math.random() * 7) + 1;
+        duration = days * 24 * 60; // Convert to minutes
+        totalPrice = Number(service.basePrice) * days;
+      }
+
+      const booking = await prisma.bookingRequest.create({
+        data: {
+          clientId: client.profile.id,
+          serviceTypeId: service.id,
+          status,
+          requestedDate: bookingDate,
+          requestedTime,
+          confirmedDate,
+          confirmedTime: confirmedDate ? requestedTime : null,
+          duration,
+          notes: Math.random() > 0.7 ? randomItem([
+            "Please use back gate",
+            "Dog is nervous around loud noises",
+            "Call when arriving",
+            "Dog needs medication at noon",
+            "Please bring treats",
+            "Dog doesn't like other dogs",
+            "First time client",
+            "Referred by a friend",
+          ]) : null,
+          createdAt: new Date(bookingDate.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+          dogs: {
+            create: { dogId: dog.id }
+          }
+        },
+      });
+
+      totalBookings++;
+
+      // Create invoice for completed bookings
+      if (status === BookingStatus.COMPLETED && isPastMonth) {
+        monthlyInvoiceCounters[monthKey]++;
+        const invoiceNumber = generateInvoiceNumber(bookingDate, monthlyInvoiceCounters[monthKey]);
+
+        // Most invoices are paid, some sent, few overdue
+        const rand = Math.random();
+        let invoiceStatus: InvoiceStatus;
+        let amountPaid = 0;
+        let paidAt = null;
+
+        if (rand < 0.88) {
+          invoiceStatus = InvoiceStatus.PAID;
+          amountPaid = totalPrice;
+          paidAt = new Date(bookingDate.getTime() + Math.random() * 14 * 24 * 60 * 60 * 1000);
+        } else if (rand < 0.95) {
+          invoiceStatus = InvoiceStatus.SENT;
+        } else {
+          invoiceStatus = InvoiceStatus.OVERDUE;
+        }
+
+        await prisma.invoice.create({
+          data: {
+            clientId: client.profile.id,
+            invoiceNumber,
+            status: invoiceStatus,
+            periodStart: bookingDate,
+            periodEnd: bookingDate,
+            subtotal: totalPrice,
+            tax: 0,
+            total: totalPrice,
+            amountPaid,
+            paidAt,
+            dueDate: new Date(bookingDate.getTime() + 30 * 24 * 60 * 60 * 1000),
+            issueDate: bookingDate,
+            createdAt: bookingDate,
+            items: {
+              create: {
+                description: `${service.name} - ${dog.name}`,
+                quantity: service.slug === "boarding" ? Math.ceil(duration! / (24 * 60)) : 1,
+                unitPrice: Number(service.basePrice),
+                total: totalPrice,
+              }
+            }
+          }
+        });
+
+        totalInvoices++;
+      }
+    }
+
+    // Move to next month
+    startDate.setMonth(startDate.getMonth() + 1);
+  }
+
+  console.log(`  ✓ Created ${totalBookings} bookings`);
+  console.log(`  ✓ Created ${totalInvoices} invoices`);
+
+  // Create some upcoming bookings (next 2 weeks)
+  console.log("\nCreating upcoming bookings...");
+  let upcomingCount = 0;
+
+  for (let i = 0; i < 20; i++) {
+    const client = randomItem(createdClients);
+    const dog = randomItem(client.dogs);
+    const service = randomItem(createdServices);
+
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + Math.floor(Math.random() * 14) + 1);
+
+    const status = Math.random() > 0.3 ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
+    const requestedTime = `${Math.floor(Math.random() * 4) + 8}:${Math.random() > 0.5 ? "00" : "30"} AM`;
+
+    await prisma.bookingRequest.create({
+      data: {
+        clientId: client.profile.id,
+        serviceTypeId: service.id,
+        status,
+        requestedDate: futureDate,
+        requestedTime,
+        confirmedDate: status === BookingStatus.CONFIRMED ? futureDate : null,
+        confirmedTime: status === BookingStatus.CONFIRMED ? requestedTime : null,
+        duration: service.duration,
+        dogs: {
+          create: { dogId: dog.id }
+        }
       },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking3.dogs[0].dog.name} - ${booking3.status}`);
+    });
+    upcomingCount++;
+  }
+  console.log(`  ✓ Created ${upcomingCount} upcoming bookings`);
 
-  // Pending training for Buddy (Alice's dog)
-  const inTwoDays = new Date();
-  inTwoDays.setDate(inTwoDays.getDate() + 2);
-  const booking4 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[3].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[0].id } },
-      status: BookingStatus.PENDING,
-      requestedDate: inTwoDays,
-      requestedTime: "morning",
-      notes: "Buddy has strong prey drive, need help with recall",
-      dogs: {
-        create: { dogId: createdDogs[4].id },
-      },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking4.dogs[0].dog.name} - ${booking4.status}`);
-
-  // Rejected booking for Rocky (Bob's dog) - schedule conflict
-  const lastWeek = new Date();
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const booking5 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[4].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[2].id } },
-      status: BookingStatus.REJECTED,
-      requestedDate: lastWeek,
-      requestedTime: "all day",
-      notes: "Need boarding for the weekend",
-      rejectionReason: "Fully booked for that weekend. Suggested alternative dates.",
-      dogs: {
-        create: { dogId: createdDogs[6].id },
-      },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking5.dogs[0].dog.name} - ${booking5.status}`);
-
-  // Completed booking for Molly (Carol's dog)
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  const booking6 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[5].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[3].id } },
-      status: BookingStatus.COMPLETED,
-      requestedDate: twoWeeksAgo,
-      requestedTime: "afternoon",
-      notes: "Gentle nail trim for senior dog",
-      confirmedDate: twoWeeksAgo,
-      confirmedTime: twoWeeksAgo,
-      dogs: {
-        create: { dogId: createdDogs[7].id },
-      },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking6.dogs[0].dog.name} - ${booking6.status}`);
-
-  // Cancelled booking
-  const booking7 = await prisma.bookingRequest.create({
-    data: {
-      client: { connect: { id: createdClients[3].clientProfile!.id } },
-      serviceType: { connect: { id: createdServices[0].id } },
-      status: BookingStatus.CANCELLED,
-      requestedDate: lastWeek,
-      requestedTime: "afternoon",
-      notes: "Training session for Daisy",
-      adminNotes: "Client cancelled due to illness",
-      dogs: {
-        create: { dogId: createdDogs[5].id },
-      },
-    },
-    include: { dogs: { include: { dog: true } } },
-  });
-  console.log(`  ✓ Booking: ${booking7.dogs[0].dog.name} - ${booking7.status}`);
-
-  // Create past service records with invoice
-  console.log("\nCreating service records and invoice...");
-  const lastMonth = new Date();
-  lastMonth.setMonth(lastMonth.getMonth() - 1);
-  lastMonth.setDate(1);
-
-  const lastMonthEnd = new Date(lastMonth);
-  lastMonthEnd.setMonth(lastMonthEnd.getMonth() + 1);
-  lastMonthEnd.setDate(0);
-
-  // Invoice 1: PAID - John Smith (Max)
-  const invoice1 = await prisma.invoice.create({
-    data: {
-      client: { connect: { id: createdClients[0].clientProfile!.id } },
-      invoiceNumber: `INV-${lastMonth.getFullYear()}${String(lastMonth.getMonth() + 1).padStart(2, "0")}-001`,
-      status: InvoiceStatus.PAID,
-      periodStart: lastMonth,
-      periodEnd: lastMonthEnd,
-      subtotal: 280.00,
-      tax: 0,
-      total: 280.00,
-      amountPaid: 280.00,
-      dueDate: new Date(lastMonthEnd.getTime() + 30 * 24 * 60 * 60 * 1000),
-      paidAt: new Date(lastMonthEnd.getTime() + 15 * 24 * 60 * 60 * 1000),
-      items: {
-        create: [
-          {
-            description: "Private Dog Training - Max",
-            quantity: 2,
-            unitPrice: 140.00,
-            total: 280.00,
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Invoice: ${invoice1.invoiceNumber} (${invoice1.status})`);
-
-  // Invoice 2: SENT - Alice Thompson (Buddy & Daisy)
-  const invoice2 = await prisma.invoice.create({
-    data: {
-      client: { connect: { id: createdClients[3].clientProfile!.id } },
-      invoiceNumber: `INV-${lastMonth.getFullYear()}${String(lastMonth.getMonth() + 1).padStart(2, "0")}-002`,
-      status: InvoiceStatus.SENT,
-      periodStart: lastMonth,
-      periodEnd: lastMonthEnd,
-      subtotal: 195.00,
-      tax: 0,
-      total: 195.00,
-      amountPaid: 0,
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      items: {
-        create: [
-          {
-            description: "Private Dog Training - Buddy",
-            quantity: 1,
-            unitPrice: 140.00,
-            total: 140.00,
-          },
-          {
-            description: "Day Hike - Daisy",
-            quantity: 1,
-            unitPrice: 55.00,
-            total: 55.00,
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Invoice: ${invoice2.invoiceNumber} (${invoice2.status})`);
-
-  // Invoice 3: OVERDUE - Bob Martinez (Rocky)
-  const twoMonthsAgo = new Date();
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  const invoice3 = await prisma.invoice.create({
-    data: {
-      client: { connect: { id: createdClients[4].clientProfile!.id } },
-      invoiceNumber: `INV-${twoMonthsAgo.getFullYear()}${String(twoMonthsAgo.getMonth() + 1).padStart(2, "0")}-003`,
-      status: InvoiceStatus.OVERDUE,
-      periodStart: twoMonthsAgo,
-      periodEnd: new Date(twoMonthsAgo.getTime() + 30 * 24 * 60 * 60 * 1000),
-      subtotal: 140.00,
-      tax: 0,
-      total: 140.00,
-      amountPaid: 0,
-      dueDate: new Date(twoMonthsAgo.getTime() + 45 * 24 * 60 * 60 * 1000),
-      notes: "Payment reminder sent on " + new Date(twoMonthsAgo.getTime() + 50 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-      items: {
-        create: [
-          {
-            description: "Private Dog Training - Rocky",
-            quantity: 1,
-            unitPrice: 140.00,
-            total: 140.00,
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Invoice: ${invoice3.invoiceNumber} (${invoice3.status})`);
-
-  // Invoice 4: PARTIAL - Carol Williams (Molly)
-  const invoice4 = await prisma.invoice.create({
-    data: {
-      client: { connect: { id: createdClients[5].clientProfile!.id } },
-      invoiceNumber: `INV-${lastMonth.getFullYear()}${String(lastMonth.getMonth() + 1).padStart(2, "0")}-004`,
-      status: InvoiceStatus.PARTIAL,
-      periodStart: lastMonth,
-      periodEnd: lastMonthEnd,
-      subtotal: 60.00,
-      tax: 0,
-      total: 60.00,
-      amountPaid: 20.00,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      notes: "Partial payment received, remaining balance due",
-      items: {
-        create: [
-          {
-            description: "Nail Trim - Molly",
-            quantity: 2,
-            unitPrice: 20.00,
-            total: 40.00,
-          },
-          {
-            description: "Grooming supplies",
-            quantity: 1,
-            unitPrice: 20.00,
-            total: 20.00,
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Invoice: ${invoice4.invoiceNumber} (${invoice4.status})`);
-
-  // Invoice 5: DRAFT - Sarah Johnson (Luna & Cooper)
-  const invoice5 = await prisma.invoice.create({
-    data: {
-      client: { connect: { id: createdClients[1].clientProfile!.id } },
-      invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}-005`,
-      status: InvoiceStatus.DRAFT,
-      periodStart: new Date(),
-      periodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      subtotal: 250.00,
-      tax: 0,
-      total: 250.00,
-      amountPaid: 0,
-      dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-      items: {
-        create: [
-          {
-            description: "Private Dog Training - Luna",
-            quantity: 1,
-            unitPrice: 140.00,
-            total: 140.00,
-          },
-          {
-            description: "Day Hike - Luna & Cooper",
-            quantity: 2,
-            unitPrice: 55.00,
-            total: 110.00,
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Invoice: ${invoice5.invoiceNumber} (${invoice5.status})`);
-
-  // Create content tiers with modules and lessons
-  console.log("\nCreating training content...");
-
-  const foundationTier = await prisma.contentTier.upsert({
-    where: { slug: "foundation" },
-    update: {},
-    create: {
-      name: "Foundation",
-      slug: "foundation",
-      description: "Essential training basics for new dog parents. Learn commands, house training, and socialization.",
-      price: 29.00,
-      sortOrder: 1,
-      isActive: true,
-      modules: {
-        create: [
-          {
-            title: "Getting Started",
-            slug: "getting-started",
-            description: "Set up for success with your new training journey",
-            sortOrder: 1,
-            isPublished: true,
-            lessons: {
-              create: [
-                {
-                  title: "Welcome to Foundation Training",
-                  slug: "welcome",
-                  description: "Introduction to positive reinforcement and what to expect",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 480,
-                  sortOrder: 1,
-                  isPublished: true,
-                },
-                {
-                  title: "Setting Up Your Training Space",
-                  slug: "training-space",
-                  description: "Essential equipment and environment setup",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 360,
-                  sortOrder: 2,
-                  isPublished: true,
-                },
-              ],
-            },
-          },
-          {
-            title: "Basic Commands",
-            slug: "basic-commands",
-            description: "Master the essential commands every dog should know",
-            sortOrder: 2,
-            isPublished: true,
-            lessons: {
-              create: [
-                {
-                  title: "Teaching Sit",
-                  slug: "sit",
-                  description: "The foundation of all commands",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 600,
-                  sortOrder: 1,
-                  isPublished: true,
-                },
-                {
-                  title: "Teaching Down",
-                  slug: "down",
-                  description: "A calming command for everyday use",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 720,
-                  sortOrder: 2,
-                  isPublished: true,
-                },
-                {
-                  title: "Teaching Stay",
-                  slug: "stay",
-                  description: "Building impulse control",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 900,
-                  sortOrder: 3,
-                  isPublished: true,
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Tier: ${foundationTier.name}`);
-
-  const intermediateTier = await prisma.contentTier.upsert({
-    where: { slug: "intermediate" },
-    update: {},
-    create: {
-      name: "Intermediate",
-      slug: "intermediate",
-      description: "Real-world training skills. Advanced leash manners, recall, and impulse control.",
-      price: 49.00,
-      sortOrder: 2,
-      isActive: true,
-      modules: {
-        create: [
-          {
-            title: "Leash Skills",
-            slug: "leash-skills",
-            description: "Master walking without pulling",
-            sortOrder: 1,
-            isPublished: true,
-            lessons: {
-              create: [
-                {
-                  title: "Understanding Leash Pressure",
-                  slug: "leash-pressure",
-                  description: "Why dogs pull and how to change it",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 600,
-                  sortOrder: 1,
-                  isPublished: true,
-                },
-                {
-                  title: "Loose Leash Walking",
-                  slug: "loose-leash",
-                  description: "Step-by-step training process",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 900,
-                  sortOrder: 2,
-                  isPublished: true,
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Tier: ${intermediateTier.name}`);
-
-  const advancedTier = await prisma.contentTier.upsert({
-    where: { slug: "advanced" },
-    update: {},
-    create: {
-      name: "Advanced",
-      slug: "advanced",
-      description: "Master-level training. Off-leash reliability, behavior modification, and more.",
-      price: 79.00,
-      sortOrder: 3,
-      isActive: true,
-      modules: {
-        create: [
-          {
-            title: "Off-Leash Freedom",
-            slug: "off-leash",
-            description: "Building reliable off-leash obedience",
-            sortOrder: 1,
-            isPublished: true,
-            lessons: {
-              create: [
-                {
-                  title: "Prerequisites for Off-Leash",
-                  slug: "prerequisites",
-                  description: "Is your dog ready? Assessment checklist",
-                  youtubeVideoId: "dQw4w9WgXcQ",
-                  videoDuration: 480,
-                  sortOrder: 1,
-                  isPublished: true,
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  });
-  console.log(`  ✓ Tier: ${advancedTier.name}`);
-
-  // Create a sample email campaign draft
-  console.log("\nCreating sample email campaign...");
-  const campaign = await prisma.emailCampaign.create({
-    data: {
-      name: "New Year 2025 Promo",
-      subject: "New Year Training Special - 20% Off First Session!",
-      content: `
-        <h1>Happy New Year from Magic Paws!</h1>
-        <p>Start the new year right with professional dog training.</p>
-        <p>Book your first session in January and receive <strong>20% off</strong>!</p>
-        <p>Whether you have a new puppy or want to refine your dog's skills, we're here to help.</p>
-        <p>Best,<br>Samantha</p>
-      `,
-      status: "DRAFT",
-      targetAll: true,
-      targetRoles: [],
-    },
-  });
-  console.log(`  ✓ Campaign draft: ${campaign.name}`);
+  // Summary stats
+  console.log("\n📊 Seed Summary:");
+  console.log(`   • 1 admin user`);
+  console.log(`   • ${createdClients.length} clients`);
+  console.log(`   • ${createdClients.reduce((sum, c) => sum + c.dogs.length, 0)} dogs`);
+  console.log(`   • ${totalBookings + upcomingCount} total bookings`);
+  console.log(`   • ${totalInvoices} invoices`);
+  console.log(`   • 4 service types`);
 
   console.log("\n✅ Seeding complete!");
-  console.log("\n📝 Test accounts (use magic link login):");
-  console.log("   Admin: samantha@magicpaws.com");
-  console.log("\n   Clients:");
-  console.log("   - john.smith@example.com (Max)");
-  console.log("   - sarah.johnson@example.com (Luna, Cooper)");
-  console.log("   - michael.chen@example.com (Bella)");
-  console.log("   - alice.thompson@example.com (Buddy, Daisy)");
-  console.log("   - bob.martinez@example.com (Rocky)");
-  console.log("   - carol.williams@example.com (Molly)");
-  console.log("\n📊 Test data summary:");
-  console.log("   - 6 clients with profiles");
-  console.log("   - 8 dogs");
-  console.log("   - 7 bookings (various statuses)");
-  console.log("   - 5 invoices (PAID, SENT, OVERDUE, PARTIAL, DRAFT)");
-  console.log("   - 3 training content tiers");
-  console.log("   - 1 email campaign draft");
 }
 
 main()
