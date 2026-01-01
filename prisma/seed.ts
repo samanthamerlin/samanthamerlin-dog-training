@@ -5,6 +5,19 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...\n");
 
+  // Clean up old service types with wrong slugs
+  console.log("Cleaning up old service types...");
+  await prisma.serviceType.deleteMany({
+    where: {
+      slug: { in: ["hiking", "grooming-nails"] }
+    }
+  });
+
+  // Delete existing invoices to avoid duplicate invoice number errors
+  console.log("Cleaning up old invoices...");
+  await prisma.invoiceItem.deleteMany({});
+  await prisma.invoice.deleteMany({});
+
   // Create admin user
   console.log("Creating admin user...");
   const admin = await prisma.user.upsert({
